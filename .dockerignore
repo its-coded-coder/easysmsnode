@@ -1,0 +1,65 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage
+.nyc_output
+
+# Build
+dist
+build
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Documentation
+README.md
+*.md
+docs
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Uploads (will be mounted as volume)
+uploads
+
+# PM2
+.pm2
+ecosystem.config.js
+
+# Misc
+.editorconfig
+.eslintrc*
+.prettierrc*
