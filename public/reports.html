@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Reports - Safaricom Payment Processor</title>
+    <link rel="stylesheet" href="/payment-processor/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script>
+        window.BASE_PATH = '/payment-processor';
+    </script>
+    <script src="/payment-processor/socket.io/socket.io.js"></script>
+    <style>
+        .reports-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .reports-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .header-left h1 {
+            margin: 0;
+            color: #2c3e50;
+        }
+
+        .time-range-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .time-range-btn {
+            padding: 8px 16px;
+            border: 2px solid #3498db;
+            background: white;
+            color: #3498db;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .time-range-btn.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .time-range-btn:hover {
+            background: #2980b9;
+            color: white;
+        }
+
+        .export-btn {
+            padding: 8px 16px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .export-btn:hover {
+            background: #219a52;
+        }
+
+        .today-metrics {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .today-metrics h2 {
+            margin: 0 0 15px 0;
+            font-size: 1.3rem;
+        }
+
+        .today-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+
+        .today-metric {
+            text-align: center;
+        }
+
+        .today-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .today-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .comparison-indicator {
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .comparison-up {
+            color: #2ecc71;
+        }
+
+        .comparison-down {
+            color: #e74c3c;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+
+        .revenue-highlight {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+        }
+
+        .revenue-highlight .metric-value {
+            color: white;
+        }
+
+        .revenue-highlight .metric-label {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .real-time-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #27ae60;
+        }
+
+        .real-time-dot {
+            width: 8px;
+            height: 8px;
+            background: #27ae60;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .revenue-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .revenue-section h3 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+        }
+
+        @media (max-width: 768px) {
+            .metrics-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .reports-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .time-range-selector {
+                justify-content: center;
+            }
+
+            .today-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="reports-container">
+        <div class="reports-header">
+            <div class="header-left">
+                <h1>Payment Reports</h1>
+                <div class="real-time-indicator">
+                    <div class="real-time-dot"></div>
+                    <span>Real-time updates</span>
+                </div>
+            </div>
+            
+            <div class="time-range-selector">
+                <button class="time-range-btn active" data-range="daily">Last 7 Days</button>
+                <button class="time-range-btn" data-range="weekly">Last 30 Days</button>
+                <button class="time-range-btn" data-range="monthly">Last 90 Days</button>
+                <button class="export-btn" id="exportBtn">Export Successful Payments</button>
+            </div>
+        </div>
+
+        <div class="today-metrics" id="todayMetrics">
+            <h2>Today's Performance</h2>
+            <div class="today-grid">
+                <div class="loading-spinner">Loading today's metrics...</div>
+            </div>
+        </div>
+
+        <div class="metrics-grid" id="metricsGrid">
+            <div class="loading-spinner">Loading metrics...</div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">Daily Revenue Trend</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">Successful Users Daily</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="usersChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">Today's Hourly Revenue</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="hourlyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">Payment Status Distribution</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Offer Code Performance (Successful Payments)</h3>
+            <div id="offerTable">
+                <div class="loading-spinner">Loading offer code performance...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Top Failure Reasons</h3>
+            <div id="failureTable">
+                <div class="loading-spinner">Loading failure analysis...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/payment-processor/js/reports.js"></script>
+</body>
+</html>

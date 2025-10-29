@@ -1,0 +1,586 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model GameFavorite {
+  id         Int      @id @default(autoincrement())
+  msisdn     String   @db.VarChar(20)
+  game_id    Int
+  created_at DateTime @db.DateTime(6)
+  game       Game     @relation(fields: [game_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "game_favorites_ibfk_1")
+
+  @@unique([msisdn, game_id], map: "unique_user_game")
+  @@index([game_id], map: "idx_game_id")
+  @@index([msisdn], map: "idx_msisdn")
+  @@map("game_favorites")
+}
+
+model Game {
+  id               Int            @id @default(autoincrement())
+  title            String         @db.VarChar(200)
+  slug             String         @unique(map: "slug") @db.VarChar(200)
+  description      String?        @db.LongText
+  thumbnail        String?        @db.VarChar(100)
+  game_file        String?        @db.VarChar(100)
+  entry_file       String         @db.VarChar(200)
+  status           String         @db.VarChar(20)
+  created_at       DateTime       @db.DateTime(6)
+  updated_at       DateTime       @db.DateTime(6)
+  is_featured      Boolean
+  play_count       Int            @db.UnsignedInt
+  minio_bucket     String         @db.VarChar(100)
+  minio_object_key String?        @db.VarChar(500)
+  created_by_id    Int
+  category         String?        @db.VarChar(100)
+  game_favorites   GameFavorite[]
+  game_sessions    GameSession[]
+  auth_user        auth_user      @relation(fields: [created_by_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "games_created_by_id_5c618763_fk_auth_user_id")
+
+  @@index([created_at], map: "games_created_51ed57_idx")
+  @@index([created_by_id], map: "games_created_by_id_5c618763_fk_auth_user_id")
+  @@index([is_featured], map: "games_is_feat_04acbf_idx")
+  @@index([play_count], map: "games_play_co_869a06_idx")
+  @@index([slug], map: "games_slug_076f39_idx")
+  @@index([status], map: "games_status_def24c_idx")
+  @@map("games")
+}
+
+model GameSession {
+  id               Int      @id @default(autoincrement())
+  msisdn           String   @db.VarChar(20)
+  session_id       String   @unique(map: "session_id") @db.Char(32)
+  started_at       DateTime @db.DateTime(6)
+  last_activity    DateTime @db.DateTime(6)
+  duration_seconds Int      @db.UnsignedInt
+  is_active        Boolean
+  game_id          Int
+  ip_address       String?  @db.Char(39)
+  user_agent       String   @default(dbgenerated("(_utf8mb4\\'\\')")) @db.LongText
+  game             Game     @relation(fields: [game_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "game_sessions_game_id_c1c0e746_fk_games_id")
+
+  @@unique([game_id, msisdn, is_active], map: "unique_active_session")
+  @@index([game_id, started_at], map: "game_sessio_game_id_9594e0_idx")
+  @@index([game_id, msisdn], map: "game_sessio_game_id_fa977a_idx")
+  @@index([is_active], map: "game_sessio_is_acti_6c3f78_idx")
+  @@index([msisdn, started_at], map: "game_sessio_msisdn_c8436a_idx")
+  @@index([msisdn], map: "game_sessions_msisdn_33235789")
+  @@map("game_sessions")
+}
+
+model auth_user {
+  id                         Int                          @id @default(autoincrement())
+  password                   String                       @db.VarChar(128)
+  last_login                 DateTime?                    @db.DateTime(6)
+  is_superuser               Boolean
+  username                   String                       @unique(map: "username") @db.VarChar(150)
+  first_name                 String                       @db.VarChar(150)
+  last_name                  String                       @db.VarChar(150)
+  email                      String                       @db.VarChar(254)
+  is_staff                   Boolean
+  is_active                  Boolean
+  date_joined                DateTime                     @db.DateTime(6)
+  analytics_configs          analytics_configs[]
+  auth_user_groups           auth_user_groups[]
+  auth_user_user_permissions auth_user_user_permissions[]
+  django_admin_log           django_admin_log[]
+  games                      Game[]
+  marketer_logins            marketer_logins[]
+  marketer_users             marketer_users?
+}
+
+model analytics_calculation_log {
+  id                BigInt    @id @default(autoincrement())
+  calculation_date  DateTime  @db.Date
+  calculation_type  String    @db.VarChar(50)
+  start_time        DateTime  @db.DateTime(6)
+  end_time          DateTime? @db.DateTime(6)
+  duration_seconds  Int?
+  records_processed Int
+  success           Boolean
+  error_message     String?   @db.LongText
+
+  @@index([calculation_date, calculation_type], map: "analytics_c_calcula_31bb71_idx")
+  @@index([start_time(sort: Desc)], map: "analytics_c_start_t_4b65ae_idx")
+  @@index([calculation_date], map: "analytics_calculation_log_calculation_date_28cb0d08")
+}
+
+model analytics_configs {
+  id                 BigInt     @id @default(autoincrement())
+  display_percentage Decimal    @db.Decimal(5, 2)
+  show_revenue       Boolean
+  custom_message     String?    @db.LongText
+  created_at         DateTime   @db.DateTime(6)
+  updated_at         DateTime   @db.DateTime(6)
+  created_by_id      Int?
+  marketer_id        Int
+  auth_user          auth_user? @relation(fields: [created_by_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "analytics_configs_created_by_id_d16e1bcb_fk_auth_user_id")
+  marketers          marketers  @relation(fields: [marketer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "analytics_configs_marketer_id_ee0342e3_fk_marketers_id")
+
+  @@index([created_by_id], map: "analytics_configs_created_by_id_d16e1bcb_fk_auth_user_id")
+  @@index([marketer_id], map: "analytics_configs_marketer_id_ee0342e3_fk_marketers_id")
+}
+
+model auth_group {
+  id                     Int                      @id @default(autoincrement())
+  name                   String                   @unique(map: "name") @db.VarChar(150)
+  auth_group_permissions auth_group_permissions[]
+  auth_user_groups       auth_user_groups[]
+}
+
+model auth_group_permissions {
+  id              BigInt          @id @default(autoincrement())
+  group_id        Int
+  permission_id   Int
+  auth_permission auth_permission @relation(fields: [permission_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "auth_group_permissio_permission_id_84c5c92e_fk_auth_perm")
+  auth_group      auth_group      @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "auth_group_permissions_group_id_b120cbf9_fk_auth_group_id")
+
+  @@unique([group_id, permission_id], map: "auth_group_permissions_group_id_permission_id_0cd325b0_uniq")
+  @@index([permission_id], map: "auth_group_permissio_permission_id_84c5c92e_fk_auth_perm")
+}
+
+model auth_permission {
+  id                         Int                          @id @default(autoincrement())
+  name                       String                       @db.VarChar(255)
+  content_type_id            Int
+  codename                   String                       @db.VarChar(100)
+  auth_group_permissions     auth_group_permissions[]
+  django_content_type        django_content_type          @relation(fields: [content_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "auth_permission_content_type_id_2f476e4b_fk_django_co")
+  auth_user_user_permissions auth_user_user_permissions[]
+
+  @@unique([content_type_id, codename], map: "auth_permission_content_type_id_codename_01ab375a_uniq")
+}
+
+model auth_user_groups {
+  id         BigInt     @id @default(autoincrement())
+  user_id    Int
+  group_id   Int
+  auth_group auth_group @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "auth_user_groups_group_id_97559544_fk_auth_group_id")
+  auth_user  auth_user  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "auth_user_groups_user_id_6a12ed8b_fk_auth_user_id")
+
+  @@unique([user_id, group_id], map: "auth_user_groups_user_id_group_id_94350c0c_uniq")
+  @@index([group_id], map: "auth_user_groups_group_id_97559544_fk_auth_group_id")
+}
+
+model auth_user_user_permissions {
+  id              BigInt          @id @default(autoincrement())
+  user_id         Int
+  permission_id   Int
+  auth_permission auth_permission @relation(fields: [permission_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "auth_user_user_permi_permission_id_1fbb5f2c_fk_auth_perm")
+  auth_user       auth_user       @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "auth_user_user_permissions_user_id_a95ead1b_fk_auth_user_id")
+
+  @@unique([user_id, permission_id], map: "auth_user_user_permissions_user_id_permission_id_14a6b632_uniq")
+  @@index([permission_id], map: "auth_user_user_permi_permission_id_1fbb5f2c_fk_auth_perm")
+}
+
+model campaign_analytics {
+  id                  BigInt            @id @default(autoincrement())
+  date                DateTime          @db.Date
+  clicks              Int
+  subscriptions       Int
+  conversion_rate     Decimal           @db.Decimal(5, 2)
+  revenue             Decimal           @db.Decimal(10, 2)
+  updated_at          DateTime          @db.DateTime(6)
+  campaign_id         Int
+  reporting_period_id BigInt
+  campaigns           campaigns         @relation(fields: [campaign_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "campaign_analytics_campaign_id_4dbee0c6_fk_campaigns_id")
+  reporting_periods   reporting_periods @relation(fields: [reporting_period_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "campaign_analytics_reporting_period_id_3f99cc9b_fk_reporting")
+
+  @@unique([campaign_id, date, reporting_period_id], map: "campaign_analytics_campaign_id_date_reporti_8da91483_uniq")
+  @@index([campaign_id, date], map: "campaign_an_campaig_6a6196_idx")
+  @@index([date], map: "campaign_an_date_def475_idx")
+  @@index([reporting_period_id], map: "campaign_analytics_reporting_period_id_3f99cc9b_fk_reporting")
+}
+
+model campaign_clicks {
+  id                     Int                      @id @default(autoincrement())
+  click_id               String                   @db.VarChar(100)
+  msisdn                 String?                  @db.VarChar(20)
+  ip_address             String?                  @db.Char(39)
+  user_agent             String?                  @db.LongText
+  created_at             DateTime                 @db.DateTime(6)
+  campaign_id            Int
+  campaigns              campaigns                @relation(fields: [campaign_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "campaign_clicks_campaign_id_0becd599_fk_campaigns_id")
+  campaign_subscriptions campaign_subscriptions[]
+
+  @@index([click_id], map: "campaign_cl_click_i_7dc43d_idx")
+  @@index([msisdn], map: "campaign_cl_msisdn_d87117_idx")
+  @@index([campaign_id], map: "campaign_clicks_campaign_id_0becd599_fk_campaigns_id")
+  @@index([click_id], map: "campaign_clicks_click_id_03c23697")
+  @@index([msisdn], map: "campaign_clicks_msisdn_5c9de595")
+}
+
+model campaign_subscriptions {
+  id                 Int              @id @default(autoincrement())
+  msisdn             String           @db.VarChar(20)
+  subscription_date  DateTime         @db.DateTime(6)
+  offer_code         String           @db.VarChar(50)
+  postback_sent      Boolean
+  postback_response  String?          @db.LongText
+  postback_sent_at   DateTime?        @db.DateTime(6)
+  campaign_id        Int
+  click_id           Int?
+  client_id          String           @db.VarChar(20)
+  postback_halted    Boolean
+  postback_halted_at DateTime?        @db.DateTime(6)
+  campaigns          campaigns        @relation(fields: [campaign_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "campaign_subscriptions_campaign_id_e5afb584_fk_campaigns_id")
+  campaign_clicks    campaign_clicks? @relation(fields: [click_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "campaign_subscriptions_click_id_412e1409_fk_campaign_clicks_id")
+  clients            clients          @relation(fields: [client_id], references: [msisdn], onDelete: NoAction, onUpdate: NoAction, map: "campaign_subscriptions_client_id_3f5a1e03_fk_clients_msisdn")
+
+  @@index([msisdn], map: "campaign_su_msisdn_ac52ae_idx")
+  @@index([postback_halted], map: "campaign_su_postbac_162507_idx")
+  @@index([postback_sent], map: "campaign_su_postbac_61a1d3_idx")
+  @@index([subscription_date], map: "campaign_su_subscri_49f844_idx")
+  @@index([campaign_id], map: "campaign_subscriptions_campaign_id_e5afb584_fk_campaigns_id")
+  @@index([click_id], map: "campaign_subscriptions_click_id_412e1409_fk_campaign_clicks_id")
+  @@index([client_id], map: "campaign_subscriptions_client_id_3f5a1e03_fk_clients_msisdn")
+  @@index([msisdn], map: "campaign_subscriptions_msisdn_c0af514a")
+}
+
+model campaigns {
+  id                       Int                      @id @default(autoincrement())
+  name                     String                   @db.VarChar(100)
+  description              String?                  @db.LongText
+  start_date               DateTime                 @db.DateTime(6)
+  end_date                 DateTime?                @db.DateTime(6)
+  is_active                Boolean
+  postback_url             String                   @db.VarChar(500)
+  created_at               DateTime                 @db.DateTime(6)
+  updated_at               DateTime                 @db.DateTime(6)
+  marketer_id              Int
+  postback_send_percentage Int
+  campaign_analytics       campaign_analytics[]
+  campaign_clicks          campaign_clicks[]
+  campaign_subscriptions   campaign_subscriptions[]
+  marketers                marketers                @relation(fields: [marketer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "campaigns_marketer_id_a761775d_fk_marketers_id")
+
+  @@index([marketer_id], map: "campaigns_marketer_id_a761775d_fk_marketers_id")
+}
+
+model clients {
+  msisdn                 String                   @id @db.VarChar(20)
+  offer_code             String                   @db.VarChar(50)
+  first_seen             DateTime                 @db.DateTime(6)
+  last_seen              DateTime                 @db.DateTime(6)
+  subscription_status    String                   @db.VarChar(1)
+  subscription_date      DateTime                 @db.DateTime(6)
+  last_payment_date      DateTime?                @db.DateTime(6)
+  campaign_subscriptions campaign_subscriptions[]
+
+  @@index([last_payment_date], map: "clients_last_pa_3d28f7_idx")
+  @@index([offer_code], map: "clients_offer_c_be57ac_idx")
+}
+
+model daily_analytics {
+  id                       BigInt    @id @default(autoincrement())
+  date                     DateTime  @unique(map: "date") @db.Date
+  total_clients            Int
+  active_clients           Int
+  inactive_clients         Int
+  new_clients              Int
+  churned_clients          Int
+  total_payments           Int
+  successful_payments      Int
+  failed_payments          Int
+  pending_payments         Int
+  total_revenue            Decimal   @db.Decimal(15, 2)
+  average_payment_amount   Decimal   @db.Decimal(10, 2)
+  payment_success_rate     Decimal   @db.Decimal(5, 2)
+  total_clicks             Int
+  total_conversions        Int
+  campaign_conversion_rate Decimal   @db.Decimal(5, 2)
+  active_campaigns         Int
+  total_deactivations      Int
+  deactivation_rate        Decimal   @db.Decimal(5, 2)
+  created_at               DateTime  @db.DateTime(6)
+  updated_at               DateTime  @db.DateTime(6)
+  last_calculated          DateTime? @db.DateTime(6)
+
+  @@index([date], map: "daily_analy_date_14b7ba_idx")
+  @@index([date, total_revenue], map: "daily_analy_date_2827c3_idx")
+  @@index([date(sort: Desc)], map: "daily_analy_date_615859_idx")
+  @@index([date, total_payments], map: "daily_analy_date_abea3d_idx")
+}
+
+model daily_campaign_analytics {
+  id                  BigInt   @id @default(autoincrement())
+  date                DateTime @db.Date
+  campaign_id         Int
+  campaign_name       String   @db.VarChar(100)
+  marketer_name       String   @db.VarChar(100)
+  clicks              Int
+  conversions         Int
+  conversion_rate     Decimal  @db.Decimal(5, 2)
+  attributed_revenue  Decimal  @db.Decimal(15, 2)
+  attributed_payments Int
+  postbacks_sent      Int
+  postbacks_failed    Int
+  created_at          DateTime @db.DateTime(6)
+  updated_at          DateTime @db.DateTime(6)
+
+  @@unique([date, campaign_id], map: "daily_campaign_analytics_date_campaign_id_d1ceb29f_uniq")
+  @@index([campaign_id, date(sort: Desc)], map: "daily_campa_campaig_7d8f9c_idx")
+  @@index([date, campaign_id], map: "daily_campa_date_4c128c_idx")
+  @@index([date, attributed_revenue(sort: Desc)], map: "daily_campa_date_9fb29a_idx")
+  @@index([date, conversions(sort: Desc)], map: "daily_campa_date_b929bb_idx")
+  @@index([campaign_id], map: "daily_campaign_analytics_campaign_id_2644325b")
+  @@index([date], map: "daily_campaign_analytics_date_11acbff3")
+}
+
+model daily_offer_analytics {
+  id                   BigInt   @id @default(autoincrement())
+  date                 DateTime @db.Date
+  offer_code           String   @db.VarChar(50)
+  total_clients        Int
+  active_clients       Int
+  new_clients          Int
+  churned_clients      Int
+  total_payments       Int
+  successful_payments  Int
+  failed_payments      Int
+  total_revenue        Decimal  @db.Decimal(15, 2)
+  payment_success_rate Decimal  @db.Decimal(5, 2)
+  total_clicks         Int
+  total_conversions    Int
+  conversion_rate      Decimal  @db.Decimal(5, 2)
+  created_at           DateTime @db.DateTime(6)
+  updated_at           DateTime @db.DateTime(6)
+
+  @@unique([date, offer_code], map: "daily_offer_analytics_date_offer_code_92d91fee_uniq")
+  @@index([date], map: "daily_offer_analytics_date_1001967d")
+  @@index([offer_code], map: "daily_offer_analytics_offer_code_1e83ec4d")
+  @@index([date, total_payments(sort: Desc)], map: "daily_offer_date_38ed2e_idx")
+  @@index([date, offer_code], map: "daily_offer_date_404f9b_idx")
+  @@index([date, total_revenue(sort: Desc)], map: "daily_offer_date_f87a35_idx")
+  @@index([offer_code, date(sort: Desc)], map: "daily_offer_offer_c_600682_idx")
+}
+
+model deactivations {
+  id                  Int       @id @default(autoincrement())
+  msisdn              String    @db.VarChar(20)
+  offer_code          String    @db.VarChar(50)
+  subscription_date   DateTime? @db.DateTime(6)
+  deactivation_date   DateTime  @db.DateTime(6)
+  deactivation_reason String?   @db.VarChar(255)
+  transaction_id      String?   @db.VarChar(50)
+
+  @@index([msisdn], map: "deactivatio_msisdn_4d053b_idx")
+  @@index([offer_code], map: "deactivatio_offer_c_c2b153_idx")
+  @@index([msisdn], map: "deactivations_msisdn_ce182edc")
+}
+
+model django_admin_log {
+  id                  Int                  @id @default(autoincrement())
+  action_time         DateTime             @db.DateTime(6)
+  object_id           String?              @db.LongText
+  object_repr         String               @db.VarChar(200)
+  action_flag         Int                  @db.UnsignedSmallInt
+  change_message      String               @db.LongText
+  content_type_id     Int?
+  user_id             Int
+  django_content_type django_content_type? @relation(fields: [content_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "django_admin_log_content_type_id_c4bce8eb_fk_django_co")
+  auth_user           auth_user            @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "django_admin_log_user_id_c564eba6_fk_auth_user_id")
+
+  @@index([content_type_id], map: "django_admin_log_content_type_id_c4bce8eb_fk_django_co")
+  @@index([user_id], map: "django_admin_log_user_id_c564eba6_fk_auth_user_id")
+}
+
+model django_content_type {
+  id               Int                @id @default(autoincrement())
+  app_label        String             @db.VarChar(100)
+  model            String             @db.VarChar(100)
+  auth_permission  auth_permission[]
+  django_admin_log django_admin_log[]
+
+  @@unique([app_label, model], map: "django_content_type_app_label_model_76bd3d3b_uniq")
+}
+
+model django_migrations {
+  id      BigInt   @id @default(autoincrement())
+  app     String   @db.VarChar(255)
+  name    String   @db.VarChar(255)
+  applied DateTime @db.DateTime(6)
+}
+
+model django_session {
+  session_key  String   @id @db.VarChar(40)
+  session_data String   @db.LongText
+  expire_date  DateTime @db.DateTime(6)
+
+  @@index([expire_date], map: "django_session_expire_date_a5c62663")
+}
+
+model marketer_logins {
+  id         BigInt    @id @default(autoincrement())
+  login_time DateTime  @db.DateTime(6)
+  ip_address String?   @db.Char(39)
+  user_agent String?   @db.LongText
+  session_id String?   @db.VarChar(100)
+  user_id    Int
+  auth_user  auth_user @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "marketer_logins_user_id_839c97a7_fk_auth_user_id")
+
+  @@index([user_id, login_time], map: "marketer_lo_user_id_b8f6f5_idx")
+}
+
+model marketer_users {
+  id              BigInt    @id @default(autoincrement())
+  commission_rate Decimal   @db.Decimal(5, 2)
+  revenue_share   Decimal   @db.Decimal(5, 2)
+  can_see_revenue Boolean
+  marketer_id     Int       @unique(map: "marketer_id")
+  user_id         Int       @unique(map: "user_id")
+  marketers       marketers @relation(fields: [marketer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "marketer_users_marketer_id_679e46c0_fk_marketers_id")
+  auth_user       auth_user @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "marketer_users_user_id_978690a8_fk_auth_user_id")
+}
+
+model marketers {
+  id                Int                 @id @default(autoincrement())
+  name              String              @db.VarChar(100)
+  email             String              @unique(map: "email") @db.VarChar(254)
+  phone             String?             @db.VarChar(20)
+  company           String?             @db.VarChar(100)
+  created_at        DateTime            @db.DateTime(6)
+  is_active         Boolean
+  analytics_configs analytics_configs[]
+  campaigns         campaigns[]
+  marketer_users    marketer_users?
+}
+
+model payments {
+  id          Int      @id @default(autoincrement())
+  msisdn      String   @db.VarChar(20)
+  request_id  String   @unique(map: "request_id") @db.VarChar(50)
+  offer_code  String   @db.VarChar(50)
+  amount      Decimal  @db.Decimal(10, 2)
+  timestamp   DateTime @db.DateTime(6)
+  status      String   @db.VarChar(10)
+  description String?  @db.LongText
+
+  @@index([offer_code, timestamp], map: "idx_payments_offer_timestamp")
+  @@index([status, timestamp(sort: Desc)], map: "idx_payments_status_timestamp_desc")
+  @@index([timestamp(sort: Desc)], map: "idx_payments_timestamp_desc")
+  @@index([timestamp, status], map: "idx_payments_timestamp_status")
+  @@index([msisdn, timestamp], map: "payments_msisdn_6a9a0f_idx")
+  @@index([msisdn], map: "payments_msisdn_e7002a36")
+  @@index([offer_code], map: "payments_offer_c_bbd190_idx")
+  @@index([status], map: "payments_status_d621e5_idx")
+}
+
+model processing_jobs {
+  id                  Int                     @id @default(autoincrement())
+  job_id              String                  @unique(map: "job_id") @db.VarChar(36)
+  status              processing_jobs_status? @default(pending)
+  total_clients       Int?                    @default(0)
+  processed_clients   Int?                    @default(0)
+  successful_requests Int?                    @default(0)
+  failed_requests     Int?                    @default(0)
+  batch_size          Int?                    @default(75)
+  include_inactive    Boolean?                @default(false)
+  started_at          DateTime?               @db.Timestamp(0)
+  completed_at        DateTime?               @db.Timestamp(0)
+  created_at          DateTime?               @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?               @default(now()) @db.Timestamp(0)
+  error_message       String?                 @db.Text
+  server_stats        Json?
+
+  @@index([created_at], map: "idx_created_at")
+  @@index([job_id], map: "idx_job_id")
+  @@index([status], map: "idx_status")
+}
+
+model reporting_periods {
+  id                 BigInt               @id @default(autoincrement())
+  name               String               @db.VarChar(50)
+  description        String?              @db.LongText
+  days               Int
+  campaign_analytics campaign_analytics[]
+}
+
+model scheduler_state {
+  id               Int       @id @default(1)
+  enabled          Boolean?  @default(false)
+  interval_hours   Int?      @default(4)
+  batch_size       Int?      @default(75)
+  include_inactive Boolean?  @default(false)
+  created_at       DateTime? @default(now()) @db.Timestamp(0)
+  updated_at       DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model scheduler_status {
+  id             Int       @id @default(autoincrement())
+  running        Boolean
+  last_run       DateTime? @db.DateTime(6)
+  next_run       DateTime? @db.DateTime(6)
+  interval_hours Int
+  batch_size     Int
+  max_workers    Int
+  last_updated   DateTime  @db.DateTime(6)
+}
+
+model transactions {
+  id               Int      @id @default(autoincrement())
+  transaction_id   String   @unique(map: "transaction_id") @db.VarChar(50)
+  transaction_type String   @db.VarChar(20)
+  msisdn           String?  @db.VarChar(20)
+  offer_code       String?  @db.VarChar(50)
+  timestamp        DateTime @db.DateTime(6)
+  raw_data         Json?
+
+  @@index([msisdn], map: "transaction_msisdn_b8d763_idx")
+  @@index([timestamp], map: "transaction_timesta_07633a_idx")
+  @@index([transaction_type], map: "transaction_transac_ddda52_idx")
+  @@index([msisdn], map: "transactions_msisdn_870711b4")
+}
+
+model core_client {
+  id                  Int       @id @default(autoincrement())
+  msisdn              String    @unique(map: "msisdn") @db.VarChar(15)
+  offer_code          String?   @default("001045836303") @db.VarChar(50)
+  subscription_status String    @default("A") @db.Char(1)
+  last_payment_date   DateTime? @db.DateTime(0)
+  created_at          DateTime  @db.DateTime(0)
+  updated_at          DateTime  @db.DateTime(0)
+
+  @@index([last_payment_date], map: "core_client_last_payment_date")
+  @@index([offer_code], map: "core_client_offer_code")
+  @@index([subscription_status], map: "core_client_subscription_status")
+  @@index([subscription_status, last_payment_date], map: "core_client_subscription_status_last_payment_date")
+  @@index([subscription_status, offer_code], map: "core_client_subscription_status_offer_code")
+}
+
+model payment_logs {
+  id                 Int                        @id @default(autoincrement())
+  request_id         String                     @unique(map: "request_id") @db.VarChar(100)
+  msisdn             String                     @db.VarChar(15)
+  offer_code         String                     @db.VarChar(50)
+  endpoint_used      payment_logs_endpoint_used
+  response_received  Boolean                    @default(false)
+  status_code        String?                    @db.VarChar(10)
+  description        String?                    @db.Text
+  response_data      Json?
+  error_message      String?                    @db.Text
+  processing_time_ms Int?
+  created_at         DateTime                   @db.DateTime(0)
+
+  @@index([created_at], map: "payment_logs_created_at")
+  @@index([endpoint_used], map: "payment_logs_endpoint_used")
+  @@index([msisdn], map: "payment_logs_msisdn")
+  @@index([response_received], map: "payment_logs_response_received")
+  @@index([status_code], map: "payment_logs_status_code")
+}
+
+enum processing_jobs_status {
+  pending
+  running
+  completed
+  failed
+}
+
+enum payment_logs_endpoint_used {
+  primary
+  fallback
+}

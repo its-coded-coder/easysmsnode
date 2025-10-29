@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safaricom Payment Processor</title>
+    <link rel="stylesheet" href="/payment-processor/css/style.css">
+    <script>
+        // Set base path for API calls
+        window.BASE_PATH = '/payment-processor';
+    </script>
+    <script src="/payment-processor/socket.io/socket.io.js"></script>
+    <style>
+        /* Loading overlay styles */
+        .auth-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: white;
+        }
+
+        .auth-loading-content {
+            text-align: center;
+        }
+
+        .auth-loading h2 {
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .auth-loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Hide main content initially */
+        .main-content {
+            display: none;
+        }
+
+        /* Show main content when loaded */
+        .loaded .main-content {
+            display: block;
+        }
+
+        .loaded .auth-loading {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading overlay - shown until authentication is verified -->
+    <div class="auth-loading" id="authLoading">
+        <div class="auth-loading-content">
+            <h2>Payment Processor</h2>
+            <div class="auth-loading-spinner"></div>
+            <p style="margin-top: 15px;">Initializing...</p>
+        </div>
+    </div>
+
+    <!-- Main content - hidden until authentication is verified -->
+    <div class="main-content">
+        <div class="container">
+            <header>
+                <div class="header-left">
+                    <h1>Safaricom Payment Processor</h1>
+                </div>
+                <div class="header-right">
+                    <div class="user-info">
+                        <span id="userName">Loading...</span>
+                        <button id="logoutBtn" class="logout-btn">Logout</button>
+                        <a href="/payment-processor/reports" class="btn btn-secondary" style="text-decoration: none; margin-right: 10px;">Reports</a>
+                    </div>
+                    <div class="status-indicator">
+                        <span id="connectionStatus" class="status-dot offline"></span>
+                        <span>Connected</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="dashboard">
+                <div class="card">
+                    <h2>Scheduler Control</h2>
+                    <div id="permissionWarning" class="permission-warning" style="display: none;">
+                        <p>⚠️ You don't have permission to control the scheduler. Contact an administrator.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="intervalHours">Interval (Hours):</label>
+                        <input type="number" id="intervalHours" value="4" min="1" max="12">
+                    </div>
+                    <div class="form-group">
+                        <label for="batchSize">Batch Size:</label>
+                        <input type="number" id="batchSize" value="10" min="5" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="includeInactive">
+                            Include Inactive Clients
+                        </label>
+                    </div>
+                    <div class="button-group">
+                        <button id="startScheduler" class="btn btn-primary">Start Scheduler</button>
+                        <button id="stopScheduler" class="btn btn-secondary">Stop Scheduler</button>
+                        <button id="runManual" class="btn btn-accent">Run Manual Job</button>
+                        <button id="stopAllJobs" class="btn btn-danger">Stop All Jobs</button>
+                    </div>
+                    <div id="schedulerStatus" class="status-info">
+                        <p>Status: <span id="schedulerEnabled">Stopped</span></p>
+                        <p>Next Run: <span id="nextRun">-</span></p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Upcoming Schedules</h2>
+                    <div id="upcomingSchedules" class="schedules-container">
+                        <div class="no-schedules">No scheduled runs</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Client Statistics</h2>
+                    <div id="clientStats" class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Clients:</span>
+                            <span class="stat-value" id="totalClients">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Active Clients:</span>
+                            <span class="stat-value" id="activeClients">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Inactive Clients:</span>
+                            <span class="stat-value" id="inactiveClients">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Current Job Progress</h2>
+                    <div id="currentJob" class="job-progress">
+                        <div id="noActiveJob" class="no-job">No active job</div>
+                        <div id="jobDetails" class="job-details" style="display: none;">
+                            <p>Job ID: <span id="currentJobId"></span></p>
+                            <p>Type: <span id="jobType"></span></p>
+                            <div class="progress-section">
+                                <label>Batch Progress:</label>
+                                <div class="progress-bar">
+                                    <div id="batchProgress" class="progress-fill"></div>
+                                </div>
+                                <span id="batchText">0/0 batches</span>
+                            </div>
+                            <div class="progress-section">
+                                <label>Client Progress:</label>
+                                <div class="progress-bar">
+                                    <div id="clientProgress" class="progress-fill"></div>
+                                </div>
+                                <span id="clientText">0/0 clients</span>
+                            </div>
+                            <div class="stats-row">
+                                <span>Success: <span id="successCount">0</span></span>
+                                <span>Failed: <span id="failedCount">0</span></span>
+                                <span>Rate: <span id="requestRate">0</span> req/s</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Job History</h2>
+                    <div id="jobHistory" class="job-history">
+                        <div class="loading">Loading...</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Real-time Logs</h2>
+                    <div id="logs" class="logs-container">
+                        <div class="log-entry">System initialized</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Show main content and hide loading overlay
+        function showMainContent() {
+            document.body.classList.add('loaded');
+        }
+
+        // This will be called by the PaymentProcessorClient when initialization is complete
+        window.showMainContent = showMainContent;
+    </script>
+    <script src="/payment-processor/js/app.js"></script>
+</body>
+</html>
