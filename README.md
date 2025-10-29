@@ -61,7 +61,9 @@ The easiest way to run this application is with Docker, which includes an isolat
 
 5. **Access the Application**
    - Web Interface: http://localhost:3000
-   - MySQL Database: localhost:3306
+   - MySQL Database: localhost:3307 (mapped to avoid conflicts with system MySQL)
+
+   Note: The Docker MySQL runs on port 3307 on your host machine to avoid conflicts with any existing MySQL installation on port 3306. The application container connects to MySQL internally via the Docker network on port 3306.
 
 6. **Useful Docker Commands**
    ```bash
@@ -80,6 +82,9 @@ The easiest way to run this application is with Docker, which includes an isolat
    # Execute commands in container
    docker-compose exec app sh
    docker-compose exec mysql mysql -u safaricom -p
+
+   # Access MySQL from host machine
+   mysql -h 127.0.0.1 -P 3307 -u safaricom -p
 
    # Reset everything (including database)
    docker-compose down -v

@@ -15,7 +15,10 @@ services:
       - mysql_data:/var/lib/mysql
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
-      - "3306:3306"
+      # Map to host port 3307 to avoid conflicts with system MySQL on 3306
+      # Access from host: mysql -h 127.0.0.1 -P 3307 -u safaricom -p
+      # App container uses internal port 3306 via Docker network
+      - "3307:3306"
     networks:
       - safaricom-network
     healthcheck:
