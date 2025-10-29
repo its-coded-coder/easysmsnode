@@ -14,18 +14,97 @@ A sophisticated Node.js application for automated Safaricom payment processing w
 
 ## Quick Start
 
-### Local Development
-```bash
-./setup.sh
-cd safaricom-payment-processor
-npm install
-# Edit .env file with your configuration
-npm start
-```
+### Docker Deployment (Recommended)
 
-### Docker Deployment
+The easiest way to run this application is with Docker, which includes an isolated MySQL database:
+
+1. **Prerequisites**
+   - Docker (20.10 or higher)
+   - Docker Compose (2.0 or higher)
+
+2. **Setup**
+   ```bash
+   # Clone the repository
+   git clone <repository-url>
+   cd easysmsnode
+
+   # Create .env file from example
+   cp .env.example .env
+
+   # Edit .env with your Safaricom API credentials
+   nano .env
+   ```
+
+3. **Configure Environment Variables**
+
+   Edit `.env` and update the following required fields:
+   ```env
+   SMS_API_USERNAME=your_safaricom_username
+   SMS_API_PASSWORD=your_safaricom_password
+   CPID=your_cpid
+   DEFAULT_OFFER_CODE=your_offer_code
+   CHARGE_AMOUNT=10
+   SESSION_SECRET=your-secure-random-secret
+   ```
+
+4. **Start the Application**
+   ```bash
+   # Build and start all services
+   docker-compose up -d
+
+   # View logs
+   docker-compose logs -f
+
+   # Check status
+   docker-compose ps
+   ```
+
+5. **Access the Application**
+   - Web Interface: http://localhost:3000
+   - MySQL Database: localhost:3306
+
+6. **Useful Docker Commands**
+   ```bash
+   # Stop services
+   docker-compose down
+
+   # Rebuild after code changes
+   docker-compose up -d --build
+
+   # View application logs
+   docker-compose logs -f app
+
+   # View database logs
+   docker-compose logs -f mysql
+
+   # Execute commands in container
+   docker-compose exec app sh
+   docker-compose exec mysql mysql -u safaricom -p
+
+   # Reset everything (including database)
+   docker-compose down -v
+   ```
+
+### Local Development (Without Docker)
+
 ```bash
-docker-compose up -d
+# Install dependencies
+npm install
+
+# Setup MySQL database
+mysql -u root -p < init-db.sql
+
+# Configure environment
+cp .env.example .env
+nano .env
+# Change DB_HOST to 127.0.0.1 or localhost
+
+# Run Prisma migrations
+npx prisma migrate deploy
+npx prisma generate
+
+# Start application
+npm start
 ```
 
 ### Production Deployment
@@ -73,6 +152,28 @@ SAFARICOM_PASSWORD=your_password
 - **Scalable**: Concurrent processing with load balancing
 - **Secure**: Input validation, token management, environment-based config
 - **Monitored**: Comprehensive logging and progress tracking
+
+## Docker Architecture
+
+The Docker setup includes:
+
+### Services
+- **MySQL 8.0**: Isolated database with persistent volume storage
+- **Node.js App**: Application container with Puppeteer/Chromium support
+
+### Features
+- **Health Checks**: Automatic monitoring of both services
+- **Automatic Database Migrations**: Prisma migrations run on container startup
+- **Persistent Data**: Database data is stored in Docker volumes
+- **Network Isolation**: Services communicate on a private Docker network
+- **Timezone Configuration**: Set to Africa/Nairobi
+- **Non-root User**: Application runs as unprivileged user for security
+- **Log Persistence**: Application logs are mounted to host filesystem
+
+### Volume Mounts
+- `mysql_data`: Database files (persistent)
+- `./uploads`: User uploads (shared with host)
+- `./logs`: Application logs (shared with host)
 
 ## Production Features
 

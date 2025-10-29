@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: safaricom-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-nurcana_sdp}
+      MYSQL_USER: ${DB_USER:-safaricom}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-safaricompassword}
+      TZ: Africa/Nairobi
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "3306:3306"
+    networks:
+      - safaricom-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: safaricom-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+
+      # Database Configuration
+      DB_HOST: mysql
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:-safaricom}
+      DB_PASSWORD: ${DB_PASSWORD:-safaricompassword}
+      DB_NAME: ${DB_NAME:-nurcana_sdp}
+      DATABASE_URL: mysql://${DB_USER:-safaricom}:${DB_PASSWORD:-safaricompassword}@mysql:${DB_PORT:-3306}/${DB_NAME:-nurcana_sdp}
+
+      # Safaricom API Configuration
+      SMS_API_USERNAME: ${SMS_API_USERNAME}
+      SMS_API_PASSWORD: ${SMS_API_PASSWORD}
+      CPID: ${CPID}
+      DEFAULT_OFFER_CODE: ${DEFAULT_OFFER_CODE}
+      CHARGE_AMOUNT: ${CHARGE_AMOUNT}
+
+      # Processing Configuration
+      DEFAULT_BATCH_SIZE: ${DEFAULT_BATCH_SIZE:-75}
+      DEFAULT_INTERVAL_HOURS: ${DEFAULT_INTERVAL_HOURS:-4}
+      CONCURRENT_REQUESTS: ${CONCURRENT_REQUESTS:-5}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-10000}
+      TOKEN_REFRESH_INTERVAL: ${TOKEN_REFRESH_INTERVAL:-1500000}
+
+      # Security
+      SESSION_SECRET: ${SESSION_SECRET:-please-change-this-secret-in-production}
+
+      # Puppeteer Configuration
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    networks:
+      - safaricom-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http = require('http'); const options = { hostname: 'localhost', port: 3000, path: '/api/scheduler/status', timeout: 2000 }; const req = http.get(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1)); req.on('timeout', () => { req.destroy(); process.exit(1); });"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  safaricom-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
