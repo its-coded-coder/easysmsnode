@@ -60,7 +60,8 @@ model GameSession {
   is_active        Boolean
   game_id          Int
   ip_address       String?  @db.Char(39)
-  user_agent       String   @default(dbgenerated("(_utf8mb4\\'\\')")) @db.LongText
+  user_agent       String?  @db.LongText
+  // user_agent       String   @default(dbgenerated("(_utf8mb4\\'\\')")) @db.LongText
   game             Game     @relation(fields: [game_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "game_sessions_game_id_c1c0e746_fk_games_id")
 
   @@unique([game_id, msisdn, is_active], map: "unique_active_session")
@@ -91,6 +92,8 @@ model auth_user {
   games                      Game[]
   marketer_logins            marketer_logins[]
   marketer_users             marketer_users?
+
+  @@map("auth_user")
 }
 
 model analytics_calculation_log {
