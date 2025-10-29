@@ -13,7 +13,9 @@ The application is fully containerized using Docker and Docker Compose, providin
 #### 1. MySQL Service (`mysql`)
 - **Image**: MySQL 8.0
 - **Container Name**: safaricom-mysql
-- **Port**: 3306
+- **Port**: 3307 (host) → 3306 (container)
+  - Mapped to port 3307 on host to avoid conflicts with system MySQL
+  - Application connects internally via Docker network on port 3306
 - **Features**:
   - Persistent data storage using Docker volumes
   - Health checks to ensure database is ready
@@ -62,7 +64,7 @@ All services communicate on a private Docker bridge network (`safaricom-network`
 - Docker 20.10 or higher
 - Docker Compose 2.0 or higher
 - At least 2GB of available disk space
-- Ports 3000 and 3306 available
+- Ports 3000 and 3307 available (3307 is used instead of 3306 to avoid conflicts with system MySQL)
 
 ### 2. Initial Setup
 
@@ -178,8 +180,11 @@ docker-compose up -d
 # Access application container shell
 docker-compose exec app sh
 
-# Access MySQL
+# Access MySQL from within container
 docker-compose exec mysql mysql -u safaricom -p
+
+# Access MySQL from host machine (port 3307)
+mysql -h 127.0.0.1 -P 3307 -u safaricom -p
 
 # Run Node.js commands
 docker-compose exec app npm run <command>
@@ -192,14 +197,23 @@ docker-compose exec app npx prisma studio
 ### Database Operations
 
 ```bash
-# Create database backup
+# Create database backup (from within container)
 docker-compose exec mysql mysqldump -u safaricom -p nurcana_sdp > backup.sql
 
-# Restore database
+# Or backup from host machine (port 3307)
+mysqldump -h 127.0.0.1 -P 3307 -u safaricom -p nurcana_sdp > backup.sql
+
+# Restore database (from within container)
 docker-compose exec -T mysql mysql -u safaricom -p nurcana_sdp < backup.sql
 
-# Access MySQL CLI
+# Or restore from host machine (port 3307)
+mysql -h 127.0.0.1 -P 3307 -u safaricom -p nurcana_sdp < backup.sql
+
+# Access MySQL CLI (from within container)
 docker-compose exec mysql mysql -u safaricom -p nurcana_sdp
+
+# Or from host machine (port 3307)
+mysql -h 127.0.0.1 -P 3307 -u safaricom -p nurcana_sdp
 ```
 
 ## Troubleshooting
@@ -219,7 +233,7 @@ docker-compose exec mysql mysql -u safaricom -p nurcana_sdp
 3. Ensure ports are available:
    ```bash
    lsof -i :3000
-   lsof -i :3306
+   lsof -i :3307
    ```
 
 ### Database Connection Issues
@@ -303,6 +317,25 @@ docker-compose exec mysql mysql -u safaricom -p nurcana_sdp
    ufw allow 3000/tcp
    ufw enable
    ```
+
+### Port Configuration
+
+The default setup uses port 3307 for MySQL to avoid conflicts with system MySQL. To change this:
+
+1. Edit `docker-compose.yml`:
+   ```yaml
+   ports:
+     - "3307:3306"  # Change 3307 to your preferred port
+   ```
+
+2. If you don't need external access to MySQL at all, you can remove the ports section entirely:
+   ```yaml
+   # Comment out or remove the entire ports section
+   # ports:
+   #   - "3307:3306"
+   ```
+
+   The application will still work perfectly as it connects via the internal Docker network.
 
 ### SSL/HTTPS
 

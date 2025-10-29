@@ -112,7 +112,7 @@ echo ""
 
 # Check port availability
 echo "Checking port availability..."
-ports=(3000 3306)
+ports=(3000 3307)
 for port in "${ports[@]}"; do
     echo -n "  - Port $port... "
     if ! lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1 && ! netstat -tuln 2>/dev/null | grep -q ":$port " ; then
@@ -122,6 +122,9 @@ for port in "${ports[@]}"; do
         echo "    Warning: Port $port is already in use. Docker may fail to start."
     fi
 done
+
+echo ""
+echo "Note: Docker MySQL uses port 3307 to avoid conflicts with system MySQL on port 3306."
 
 echo ""
 echo "================================================"
